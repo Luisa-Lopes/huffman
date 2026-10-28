@@ -57,3 +57,46 @@ class No:
             folhas.extend(self.direita.pegar_folhas())
 
         return folhas
+
+    def contruir_arvore(ordenado):
+        nos = []
+
+        for men, prob in ordenado.items():
+            no = No(probabilidade=prob, mensagem=men)
+            nos.append(no);
+
+
+        while len(nos) > 1:
+
+            menor = 2
+            segundoMenor = 2
+
+            menor_no = None
+            segundoMenor_No = None
+
+            for no in nos:
+                if no.probabilidade < menor:
+                    menor = no.probabilidade
+                    menor_no = no
+
+            nos.remove(menor_no)
+
+            for no in nos:
+                if no.probabilidade < segundoMenor:
+                    segundoMenor = no.probabilidade
+                    segundoMenor_No = no
+
+            nos.remove(segundoMenor_No)
+
+            soma = menor_no.probabilidade + segundoMenor_No.probabilidade
+
+            no = No(
+                probabilidade=soma,
+                esquerda=menor_no,
+                direita=segundoMenor_No
+            )
+
+            nos.append(no)   
+
+        return nos 
+
