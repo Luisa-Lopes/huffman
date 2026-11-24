@@ -43,11 +43,8 @@ def calcComprimentoMedio(folhas):
     return comprimento_medio     
    
     
-def criarTabela(dados, folhas):
-    tabela_codigos = {folha.mensagem: folha.simbolo for folha in folhas}
-    bits_codificados = "".join(tabela_codigos[byte] for byte in dados)
-
-    return (tabela_codigos, bits_codificados)
+def criarTabela(folhas):
+    return {folha.mensagem: folha.simbolo for folha in folhas}
 
 def calcEntropia(dicBytesProbabilidade):
     entropia = 0
@@ -59,12 +56,21 @@ def calcEntropia(dicBytesProbabilidade):
 
 
 def criacaoArquivo(bits_codificados,arquivo_original,extensao,dados,tabela_codigos):
-    dados_comprimidos = bytes(
-            int(bits_codificados[i:i+8], 2)
+    simbolo_unico = len(tabela_codigos) == 1
+    if simbolo_unico:
+        # O cabeçalho guarda o byte repetido e o tamanho original; não é
+        # necessário gravar um bit para cada ocorrência.
+        dados_comprimidos = b""
+        modo = "repeticao"
+    else:
+        dados_comprimidos = bytes(
+            int(bits_codificados[i:i + 8], 2)
             for i in range(0, len(bits_codificados), 8)
         )
-    
+        modo = "huffman" if dados else "vazio"
+
     header = {
+        "modo": modo,
         "nome_original": arquivo_original.name,
         "extensao": extensao,
         "tamanho_original": len(dados),
@@ -73,6 +79,8 @@ def criacaoArquivo(bits_codificados,arquivo_original,extensao,dados,tabela_codig
             for byte, codigo in tabela_codigos.items()
         }
     }
+    if simbolo_unico:
+        header["simbolo_repetido"] = next(iter(tabela_codigos))
     
     header_bytes = json.dumps(header).encode("utf-8")
     
@@ -106,8 +114,8 @@ def codificaHuff(arquivo_original: Path):
         raiz.add_simbolo()
         folhas = raiz.pegar_folhas()
 
-        # Uma árvore com uma única folha gera caminho vazio. Use um bit
-        # para que cada ocorrência do único byte tenha representação.
+        # Atribui um código válido à folha; o caso de símbolo único será
+        # armazenado em modo de repetição, sem gravar esses bits no payload.
         if len(folhas) == 1:
             folhas[0].simbolo = "0"
 
@@ -117,7 +125,12 @@ def codificaHuff(arquivo_original: Path):
         folhas = []
         comprimento_medio = 0
 
-    tabela_codigos, bits_codificados = criarTabela(dados, folhas)
+    tabela_codigos = criarTabela(folhas)
+    if len(tabela_codigos) == 1:
+        # Não materializa um bit por byte: o símbolo e o tamanho vão no header.
+        bits_codificados = ""
+    else:
+        bits_codificados = "".join(tabela_codigos[byte] for byte in dados)
 
     entropia = calcEntropia(dicBytesProbabilidade)
 
@@ -125,9 +138,14 @@ def codificaHuff(arquivo_original: Path):
 
     bits_codificados += "0" * padding
 
-    print("Codificação: ", bits_codificados)
+    if len(tabela_codigos) == 1:
+        print("Codificação: símbolo único armazenado uma vez no cabeçalho")
+    else:
+        print("Codificação: ", bits_codificados)
     print("Comprimento médio: ", comprimento_medio)
-    if bits_codificados:
+    if len(tabela_codigos) == 1:
+        print("Taxa de compressão: payload vazio; símbolo e tamanho estão no cabeçalho")
+    elif bits_codificados:
         print("Taxa de compressão", len(dados) / len(bits_codificados))
     else:
         print("Taxa de compressão: indefinida (nenhum bit foi codificado)")
