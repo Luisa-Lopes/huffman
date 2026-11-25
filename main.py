@@ -20,7 +20,6 @@ def codifica(arquivo: Path):
     codificaHuff(arquivo)
 
 def decodifica(arquivo: Path):
-    print(f"Descomprimindo {arquivo}")
     decodificaHuff(arquivo)
 
 if __name__ == "__main__":
